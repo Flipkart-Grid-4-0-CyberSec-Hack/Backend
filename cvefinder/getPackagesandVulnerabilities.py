@@ -11,16 +11,16 @@ def projectLink(url):
             soup = BeautifulSoup(response.text, 'html.parser')
             anchor = soup.find('a',class_='vertical-tabs__tab vertical-tabs__tab--with-icon vertical-tabs__tab--condensed')
             return anchor.get('href')
-        except: 
-            return "Network Error"
+        except Exception as e: 
+            return str(e)
     elif 'www.npmjs.com' in url.split('/'):
         try:
             response = requests.get(url)
             soup = BeautifulSoup(response.text, 'html.parser')
             anchor = soup.find('a',class_='b2812e30 f2874b88 fw6 mb3 mt2 truncate black-80 f4 link')
             return anchor.get('href')
-        except:
-            return "Network Error"
+        except Exception as e:
+            return str(e)
     elif 'github.com' in url.split('/'):
         return url 
     else : 
@@ -32,15 +32,15 @@ def findPackages(url):
         soup = BeautifulSoup(response.text, 'html.parser')
         files_and_folders = soup.find_all('a',class_='js-navigation-open Link--primary')
         branch = soup.find('details',class_='details-reset details-overlay mr-0 mb-0').find('span',class_='css-truncate-target').text
-    except:
-        return "Network Error"
+    except Exception as e:
+        return str(e)
     packages = {}
     for elem in files_and_folders: 
         if 'requirements.txt' in elem.text:
             try:
                 response = requests.get(url.replace('github.com','raw.githubusercontent.com') + f'/{branch}/requirements.txt')
-            except:
-                return "Network Error"
+            except Exception as e:
+                return str(e)
             unfiltered_text = response.text
             curr_string = ''
 
@@ -67,8 +67,8 @@ def findVulnerability(package_name, package_version):
         response = requests.get(url)
         soup = BeautifulSoup(response.text,'xml')
         CVES = {}
-    except: 
-        return "Network Error"
+    except Exception as e: 
+        return str(e)
     for elem in soup.find_all('tr'):
         try:
             tds = elem.find_all('td')
@@ -81,7 +81,6 @@ def findVulnerability(package_name, package_version):
 
     filtered_CVES = {}
 
-    ## Extract Version Numbers from Text and compare
     for CVEID in CVES:
         CVEDescription = CVES[CVEID]
         version_number = re.findall(r'\d+\.\d+\.\d+', CVEDescription)
