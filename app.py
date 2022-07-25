@@ -6,6 +6,8 @@ from webscan.ajaxspider import ajaxSpider
 from webscan.passivescan import passiveScan
 from webscan.spiderscan import spiderScan
 from webscan.activeScan import activeScan
+from secretscanner.filefinder import findAllFiles
+from secretscanner.filesecrets import findSecrets
 
 app = Flask(__name__)
 CORS(app)
@@ -75,6 +77,23 @@ def runScan():
         return jsonify({"error" : results})
     
     return jsonify(results)
+
+
+@app.route("/findsecrets",methods = ['GET'])
+def findsecrets():
+    url = request.args.get('url')
+    filedata = findAllFiles(url)
+    if type(filedata) == str:
+        return jsonify({'error' : filedata})
+    final_data = []
+    for elem in filedata:
+        final_data.append({
+            'file' : elem['name'],
+            'url' : elem['url'],
+            'secrets' : findSecrets(elem['url'])
+        })
+    
+    return jsonify(final_data)
 
 
 
