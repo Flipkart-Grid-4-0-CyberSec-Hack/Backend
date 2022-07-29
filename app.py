@@ -1,13 +1,19 @@
 from flask import Flask,request,jsonify
-from cvefinder.getPackagesandVulnerabilities import *
 from flask_cors import CORS
+
+from cvefinder.getPackagesandVulnerabilities import *
+from cvefinder.CVEScorefinder import *
+
 from webscan.webapplinkfinder import getWebAppLink
 from webscan.ajaxspider import ajaxSpider
 from webscan.passivescan import passiveScan
 from webscan.spiderscan import spiderScan
 from webscan.activeScan import activeScan
+
+
 from secretscanner.filefinder import findAllFiles
 from secretscanner.filesecrets import findSecrets
+
 
 app = Flask(__name__)
 CORS(app)
@@ -22,7 +28,7 @@ def find_vulnerable_packages():
     rightLink = projectLink(url)
 
     if "http" not in rightLink:
-        return jsonify({"error":rightLink})
+        return jsonify({"error":rightLink}),400
 
     weblink = getWebAppLink(rightLink)
     if "http" not in weblink:
@@ -30,30 +36,41 @@ def find_vulnerable_packages():
     packages = findPackages(rightLink)
 
     if type(packages) == str:
-        return jsonify({"error":packages})
+        return jsonify({"error":packages}),400
 
     data = {
         'orginalurl':url,
         'projecturl':rightLink,
         'packages':[],
-        'webLink' : weblink
+        'webLink' : weblink,
+        'CVSS_Score' : 0,
     }
 
-
+    total_CVSS_Score = 0
+    ans = 0 
     for elem in packages:
+        package_CVSS_Score = 0
         package = {
             'name': elem,
             'version' : packages[elem],
-            'vulnerability': []
+            'vulnerability': [],
+            'CVSS_Score' : 0,
         }
         vulnerabilityData = findVulnerability(elem,packages[elem])
         for el in vulnerabilityData:
             package['vulnerability'].append({
                 'CVE' : el,
-                'description' : vulnerabilityData[el]
-            })
-
+                'description' : vulnerabilityData[el],
+                'CVSS_Score' : findCVEScore(el)
+            })            
+            package_CVSS_Score += findCVEScore(el)
+        if len(package['vulnerability']) > 0:
+            ans += 1
+            package['CVSS_Score'] = package_CVSS_Score/len(package['vulnerability'])
         data['packages'].append(package)
+        total_CVSS_Score += package['CVSS_Score']
+    if len(data['packages']) > 0:
+        data['CVSS_Score'] = total_CVSS_Score/ans
     return jsonify(data)
 
 @app.route("/runscan",methods = ['GET'])
@@ -74,7 +91,7 @@ def runScan():
         results = activeScan(url)
 
     if type(results) == str:
-        return jsonify({"error" : results})
+        return jsonify({"error" : results}),400
     
     return jsonify(results)
 
@@ -84,7 +101,7 @@ def findsecrets():
     url = request.args.get('url')
     filedata = findAllFiles(url)
     if type(filedata) == str:
-        return jsonify({'error' : filedata})
+        return jsonify({'error' : filedata}),400
     final_data = []
     for elem in filedata:
         final_data.append({
